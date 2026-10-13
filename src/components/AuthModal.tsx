@@ -298,9 +298,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen }) => {
               disabled={actionLoading}
               className="w-full h-11 mt-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 font-semibold text-xs flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 hover:opacity-95 active:scale-[0.98] transition-all disabled:opacity-50"
             >
-              <span>{actionLoading ? 'Processing...' : credTab === 'signin' ? 'Sign In' : 'Create Account'}</span>
+              <span>{actionLoading ? 'Processing...' : credTab === 'signin' ? 'Sign In with Username' : 'Create Account & Join'}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
+
+            <p className="text-[11px] text-center text-slate-400 mt-2">
+              {credTab === 'signin'
+                ? 'Tip: Preset members can sign in with password "password123"'
+                : 'Choose any username (min 3 chars) and password (min 4 chars)'}
+            </p>
           </form>
         )}
 

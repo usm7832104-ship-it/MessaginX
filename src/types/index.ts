@@ -8,6 +8,7 @@ export interface UserProfile {
   status: 'online' | 'offline' | 'away';
   lastSeen: string;
   createdAt: string;
+  passwordHash?: string;
 }
 
 export interface Chat {

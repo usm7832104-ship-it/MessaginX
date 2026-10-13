@@ -20,6 +20,20 @@ import { UserProfile, Chat, ChatMessage, StatusStory } from '../types';
 
 export const MAX_MEMBERS_CAP = 15;
 
+/**
+ * Strips any undefined fields from an object before saving to Firestore,
+ * as Firestore strictly rejects undefined field values with an error.
+ */
+export function sanitizeForFirestore<T extends Record<string, any>>(obj: T): Record<string, any> {
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 // Sample initial cohort members to jumpstart the experience if room is new
 const DEFAULT_PRESET_MEMBERS: Omit<UserProfile, 'createdAt' | 'lastSeen'>[] = [
   {
@@ -60,17 +74,17 @@ const DEFAULT_PRESET_MEMBERS: Omit<UserProfile, 'createdAt' | 'lastSeen'>[] = [
   }
 ];
 
-/**
- * Seed initial sample members and welcome community chat if database is empty
- */
 export async function seedInitialCommunityIfEmpty() {
   try {
     const usersSnap = await getDocs(collection(db, 'users'));
-    if (usersSnap.empty) {
+    const hasSarah = usersSnap.docs.some(d => d.id === 'member-sarah-chen');
+    if (!hasSarah && usersSnap.docs.length < 10) {
       const now = new Date().toISOString();
+      const defaultPwHash = await hashPassword('password123');
       for (const m of DEFAULT_PRESET_MEMBERS) {
         await setDoc(doc(db, 'users', m.uid), {
           ...m,
+          passwordHash: defaultPwHash,
           createdAt: now,
           lastSeen: now
         });
@@ -144,6 +158,18 @@ export function subscribeToUsers(callback: (users: UserProfile[]) => void) {
   );
 }
 
+export async function hashPassword(password: string): Promise<string> {
+  try {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password + '_pulse_salt');
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch {
+    return btoa(password + '_pulse_salt');
+  }
+}
+
 /**
  * Ensure user profile exists or create if cap is not exceeded
  */
@@ -165,7 +191,8 @@ export async function registerOrUpdateUserProfile(
         displayName: userProfile.displayName || existingData.displayName || 'Member',
         username: userProfile.username || existingData.username || `user_${userProfile.uid.slice(0, 5)}`,
         status: 'online',
-        lastSeen: now
+        lastSeen: now,
+        passwordHash: userProfile.passwordHash || existingData.passwordHash
       };
       await setDoc(userDocRef, updated, { merge: true });
       return { success: true, user: updated };
@@ -189,7 +216,8 @@ export async function registerOrUpdateUserProfile(
       bio: userProfile.bio || 'Available on PulseChat.',
       status: 'online',
       lastSeen: now,
-      createdAt: now
+      createdAt: now,
+      passwordHash: userProfile.passwordHash
     };
 
     await setDoc(userDocRef, newUser);
@@ -388,24 +416,25 @@ export async function sendMessage(
     const now = new Date().toISOString();
     const msgRef = doc(collection(db, `chats/${chatId}/messages`));
 
-    const chatMsg: ChatMessage = {
+    const rawMsg: Record<string, any> = {
       id: msgRef.id,
       chatId,
       senderId: sender.uid,
       senderName: sender.displayName,
-      senderPhoto: sender.photoURL,
       content: message.content,
       type: message.type,
-      mediaUrl: message.mediaUrl,
-      fileName: message.fileName,
-      fileSize: message.fileSize,
-      voiceDuration: message.voiceDuration,
       reactions: {},
       readBy: [sender.uid],
       createdAt: now
     };
 
-    await setDoc(msgRef, chatMsg);
+    if (sender.photoURL) rawMsg.senderPhoto = sender.photoURL;
+    if (message.mediaUrl) rawMsg.mediaUrl = message.mediaUrl;
+    if (message.fileName) rawMsg.fileName = message.fileName;
+    if (message.fileSize) rawMsg.fileSize = message.fileSize;
+    if (typeof message.voiceDuration === 'number') rawMsg.voiceDuration = message.voiceDuration;
+
+    await setDoc(msgRef, sanitizeForFirestore(rawMsg));
 
     // Update parent chat's last message snippet
     let previewText = message.content;
@@ -521,21 +550,22 @@ export async function postStatusStory(
     const expires = new Date(now.getTime() + 24 * 60 * 60 * 1000); // +24 hours
     const statusRef = doc(collection(db, 'statuses'));
 
-    const newStory: StatusStory = {
+    const newStory: Record<string, any> = {
       id: statusRef.id,
       userId: user.uid,
       userName: user.displayName,
-      userPhoto: user.photoURL,
       type: story.type,
       content: story.content,
-      caption: story.caption,
       backgroundColor: story.backgroundColor || '#0F172A',
       viewers: [user.uid],
       createdAt: now.toISOString(),
       expiresAt: expires.toISOString()
     };
 
-    await setDoc(statusRef, newStory);
+    if (user.photoURL) newStory.userPhoto = user.photoURL;
+    if (story.caption) newStory.caption = story.caption;
+
+    await setDoc(statusRef, sanitizeForFirestore(newStory));
   } catch (err) {
     handleFirestoreError(err, OperationType.CREATE, 'statuses');
     throw err;

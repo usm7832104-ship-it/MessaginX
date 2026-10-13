@@ -14,6 +14,7 @@ import {
   getRegisteredUsers,
   setUserStatus,
   seedInitialCommunityIfEmpty,
+  hashPassword,
   MAX_MEMBERS_CAP
 } from '../services/chatService';
 import { UserProfile } from '../types';
@@ -141,40 +142,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signInWithCredentials = async (usernameOrEmail: string, pass: string) => {
     setIsLoading(true);
     try {
-      const formattedEmail = usernameOrEmail.includes('@')
-        ? usernameOrEmail
-        : `${usernameOrEmail.toLowerCase().replace(/[^a-z0-9]/g, '')}@pulse.chat`;
+      const cleanInput = usernameOrEmail.trim();
+      const inputHash = await hashPassword(pass);
+      const members = await getRegisteredUsers();
 
-      try {
-        const userCredential = await signInWithEmailAndPassword(auth, formattedEmail, pass);
-        const fbUser = userCredential.user;
-        const res = await registerOrUpdateUserProfile({ uid: fbUser.uid });
-        if (res.user) {
-          setCurrentUser(res.user);
-          localStorage.setItem('pulsechat_active_uid', res.user.uid);
-        }
+      const found = members.find(
+        m => m.username.toLowerCase() === cleanInput.toLowerCase() ||
+             m.email.toLowerCase() === cleanInput.toLowerCase()
+      );
+
+      if (!found) {
         setIsLoading(false);
-        return { success: true };
-      } catch {
-        // If email-password auth isn't enabled on the Firebase console, check against registered users
-        const members = await getRegisteredUsers();
-        const found = members.find(
-          m => m.username.toLowerCase() === usernameOrEmail.toLowerCase() ||
-               m.email.toLowerCase() === usernameOrEmail.toLowerCase()
-        );
-        if (found) {
-          setCurrentUser(found);
-          localStorage.setItem('pulsechat_active_uid', found.uid);
-          await setUserStatus(found.uid, 'online');
-          setIsLoading(false);
-          return { success: true };
-        }
-        setIsLoading(false);
-        return { success: false, error: 'Invalid username/email or password.' };
+        return { success: false, error: 'No account found with that username or email.' };
       }
+
+      // Verify password
+      // Default cohort members accept 'password123' or their stored passwordHash
+      const defaultPresetHash = await hashPassword('password123');
+      const isPresetMember = found.uid.startsWith('member-');
+
+      const isPasswordCorrect =
+        found.passwordHash === inputHash ||
+        (isPresetMember && (pass === 'password123' || inputHash === defaultPresetHash)) ||
+        (!found.passwordHash && pass.length >= 4);
+
+      if (!isPasswordCorrect) {
+        setIsLoading(false);
+        return { success: false, error: 'Incorrect password. Please try again.' };
+      }
+
+      // If passwordHash was not set, save it now
+      if (!found.passwordHash) {
+        await registerOrUpdateUserProfile({ uid: found.uid, passwordHash: inputHash });
+      }
+
+      setCurrentUser(found);
+      localStorage.setItem('pulsechat_active_uid', found.uid);
+      await setUserStatus(found.uid, 'online');
+      setIsLoading(false);
+      return { success: true };
     } catch (err: unknown) {
       setIsLoading(false);
-      return { success: false, error: err instanceof Error ? err.message : 'Sign-in error' };
+      return { success: false, error: err instanceof Error ? err.message : 'Sign-in error occurred.' };
     }
   };
 
@@ -187,6 +196,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ) => {
     setIsLoading(true);
     const cleanUsername = username.toLowerCase().replace(/[^a-z0-9_]/g, '');
+
+    if (cleanUsername.length < 3) {
+      setIsLoading(false);
+      return { success: false, error: 'Username must be at least 3 characters long.' };
+    }
+
+    if (pass.length < 4) {
+      setIsLoading(false);
+      return { success: false, error: 'Password must be at least 4 characters long.' };
+    }
+
     const virtualEmail = `${cleanUsername}@pulse.chat`;
 
     // 15-member cap check upfront
@@ -202,41 +222,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check unique username
     if (currentMembers.some(m => m.username.toLowerCase() === cleanUsername)) {
       setIsLoading(false);
-      return { success: false, error: 'Username is already taken by a member.' };
+      return { success: false, error: 'Username is already taken by another member.' };
     }
 
     try {
-      let createdUid = `user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      try {
-        const cred = await createUserWithEmailAndPassword(auth, virtualEmail, pass);
-        createdUid = cred.user.uid;
-      } catch {
-        // Fallback for custom user registration
-      }
+      const createdUid = `user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const passwordHash = await hashPassword(pass);
 
       const res = await registerOrUpdateUserProfile({
         uid: createdUid,
         email: virtualEmail,
         displayName: displayName.trim(),
         username: cleanUsername,
-        bio: bio || 'Available on PulseChat.',
-        photoURL: `https://api.dicebear.com/7.x/shapes/svg?seed=${cleanUsername}`
+        bio: bio?.trim() || 'Available on PulseChat.',
+        photoURL: `https://api.dicebear.com/7.x/shapes/svg?seed=${cleanUsername}`,
+        passwordHash
       });
 
-      if (!res.success) {
+      if (!res.success || !res.user) {
         setIsLoading(false);
         return { success: false, error: res.error || 'Failed to complete registration.' };
       }
 
-      setCurrentUser(res.user!);
-      localStorage.setItem('pulsechat_active_uid', res.user!.uid);
+      setCurrentUser(res.user);
+      localStorage.setItem('pulsechat_active_uid', res.user.uid);
       setRegisteredCount(prev => prev + 1);
       setAllMembers(prev => [...prev, res.user!]);
       setIsLoading(false);
       return { success: true };
     } catch (err: unknown) {
       setIsLoading(false);
-      return { success: false, error: err instanceof Error ? err.message : 'Sign up error' };
+      return { success: false, error: err instanceof Error ? err.message : 'Sign up error occurred.' };
     }
   };
 
