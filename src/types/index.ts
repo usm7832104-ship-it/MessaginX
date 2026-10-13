@@ -1,0 +1,67 @@
+export interface UserProfile {
+  uid: string;
+  email: string;
+  displayName: string;
+  username: string;
+  photoURL: string;
+  bio: string;
+  status: 'online' | 'offline' | 'away';
+  lastSeen: string;
+  createdAt: string;
+}
+
+export interface Chat {
+  id: string;
+  type: 'direct' | 'group';
+  participantIds: string[];
+  name?: string;
+  groupIcon?: string;
+  createdBy: string;
+  updatedAt: string;
+  lastMessage?: {
+    text: string;
+    senderId: string;
+    senderName: string;
+    timestamp: string;
+  };
+  unreadCounts?: Record<string, number>;
+}
+
+export type MessageType = 'text' | 'image' | 'voice' | 'file';
+
+export interface ChatMessage {
+  id: string;
+  chatId: string;
+  senderId: string;
+  senderName: string;
+  senderPhoto?: string;
+  content: string;
+  type: MessageType;
+  mediaUrl?: string;
+  fileName?: string;
+  fileSize?: string;
+  voiceDuration?: number;
+  reactions: Record<string, string[]>; // emoji -> array of userIds
+  readBy: string[]; // array of userIds
+  createdAt: string;
+}
+
+export interface StatusStory {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhoto?: string;
+  type: 'text' | 'image';
+  content: string; // text string or image dataUrl
+  caption?: string;
+  backgroundColor?: string;
+  viewers: string[]; // array of userIds
+  createdAt: string;
+  expiresAt: string; // ISO string 24h later
+}
+
+export interface ReactionItem {
+  emoji: string;
+  count: number;
+  users: string[];
+}

@@ -1,0 +1,6 @@
+{
+  "name": "PulseChat — Real-Time Glassmorphic Messaging",
+  "description": "Exclusive 15-member real-time messaging application with glassmorphic Material UI, Google & username sign-in, read receipts, emoji reactions, voice notes, media sharing, and 24-hour status stories.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

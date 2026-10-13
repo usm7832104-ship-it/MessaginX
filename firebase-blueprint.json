@@ -1,0 +1,95 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User account profile and status information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 256 },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "username": { "type": "string", "maxLength": 50 },
+        "photoURL": { "type": "string", "maxLength": 2000000 },
+        "bio": { "type": "string", "maxLength": 300 },
+        "status": { "type": "string", "enum": ["online", "offline", "away"] },
+        "lastSeen": { "type": "string", "maxLength": 50 },
+        "createdAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["uid", "displayName", "username", "createdAt"]
+    },
+    "Chat": {
+      "title": "Chat",
+      "description": "Direct conversation or group conversation between registered members",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "type": { "type": "string", "enum": ["direct", "group"] },
+        "participantIds": { "type": "array" },
+        "name": { "type": "string", "maxLength": 100 },
+        "groupIcon": { "type": "string", "maxLength": 2000000 },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "updatedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "type", "participantIds", "createdBy"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Chat message including text, media, voice notes, read receipts, and reactions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "chatId": { "type": "string", "maxLength": 128 },
+        "senderId": { "type": "string", "maxLength": 128 },
+        "senderName": { "type": "string", "maxLength": 100 },
+        "senderPhoto": { "type": "string", "maxLength": 2000000 },
+        "content": { "type": "string", "maxLength": 50000 },
+        "type": { "type": "string", "enum": ["text", "image", "voice", "file"] },
+        "mediaUrl": { "type": "string", "maxLength": 2000000 },
+        "fileName": { "type": "string", "maxLength": 200 },
+        "fileSize": { "type": "string", "maxLength": 50 },
+        "voiceDuration": { "type": "number" },
+        "reactions": { "type": "object" },
+        "readBy": { "type": "array" },
+        "createdAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "chatId", "senderId", "senderName", "type", "createdAt"]
+    },
+    "StatusStory": {
+      "title": "StatusStory",
+      "description": "24-hour disappearing status story with viewer counts and replies",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userName": { "type": "string", "maxLength": 100 },
+        "userPhoto": { "type": "string", "maxLength": 2000000 },
+        "type": { "type": "string", "enum": ["text", "image"] },
+        "content": { "type": "string", "maxLength": 2000000 },
+        "caption": { "type": "string", "maxLength": 500 },
+        "backgroundColor": { "type": "string", "maxLength": 50 },
+        "viewers": { "type": "array" },
+        "createdAt": { "type": "string", "maxLength": 50 },
+        "expiresAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "userId", "userName", "type", "content", "createdAt", "expiresAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Public user profiles for authenticated cohort members"
+    },
+    "/chats/{chatId}": {
+      "schema": { "$ref": "#/entities/Chat" },
+      "description": "Chat conversations (1-on-1 and groups)"
+    },
+    "/chats/{chatId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/Message" },
+      "description": "Messages within a conversation"
+    },
+    "/statuses/{statusId}": {
+      "schema": { "$ref": "#/entities/StatusStory" },
+      "description": "24-hour status stories posted by members"
+    }
+  }
+}
