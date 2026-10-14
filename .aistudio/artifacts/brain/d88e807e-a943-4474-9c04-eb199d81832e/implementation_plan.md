@@ -1,77 +1,76 @@
-# PulseChat — Real-Time Glassmorphic Messaging Platform
+# PulseChat Admin Control Center & Global System Upgrades
 
-PulseChat is a next-generation real-time messaging application designed with a custom Material UI glassmorphic aesthetic, fluid micro-interactions, and a strict 15-member first-come registration cap. It provides authentic modern messaging capabilities including 1-on-1 direct messaging, group conversations, live read receipts (sent/delivered/read), emoji reactions, voice audio notes, file & photo sharing, 24-hour expiring status stories, and complete profile customization powered by Firebase Firestore and Authentication.
+This implementation introduces a dedicated, persistent **Admin Management Suite** for PulseChat alongside critical UI ergonomics improvements, fixing the empty space below the chat input bar, upgrading multi-device responsiveness, and delivering 15+ persistent global glass color schemes.
 
 ---
 
 ### User Review & Critical Decisions
 
 > [!IMPORTANT]
-> The following architectural and design parameters have been confirmed:
-> - **15-Member Cap**: First-come registration capping the workspace at exactly 15 user accounts. Once 15 users register, the system disables new signups and displays a membership cap indicator.
-> - **Custom Material UI + Glassmorphism**: Tailored Material Design with layered frosted glass (`backdrop-blur-xl`), refined dark/light glass tokens, zero-pill typography, and fluid spring animations via `motion/react`.
-> - **Authentication Hierarchy**: Google Sign-in as the primary login method, alongside a secondary username and password credential flow.
-> - **Data Persistence & Live Sync**: Firebase Firestore for real-time live synchronization (`onSnapshot` for instant updates across tabs/devices) paired with Firebase Auth.
+> The following user preferences have been confirmed:
+> - **Admin Account Credentials**: Username `admin`, password `admin783`. The account is provisioned directly into Firestore with `role: 'admin'`.
+> - **Persistent Global Announcement**: Top ribbon with real-time text broadcast, severity badges (Info, Alert, Urgent), admin edit/clear controls, and individual member dismiss memory.
+> - **15+ Curated Global Glass Themes**: 15 distinct colorways (Emerald, Cyber Cyan, Midnight, Sunset, Rose, Amethyst, Golden Hour, Nordic Frost, Matrix Green, Royal Indigo, Crimson Velvet, Tokyo Neon, Espresso Amber, Ocean Deep, Monochrome Slate). Any theme selected by the admin persists in Firestore under `/settings/global` and applies across all connected devices in real time.
+> - **Member Moderation & Ban Enforcing**: Immediate lockout screen with reason and countdown timer for temporary bans, and indefinite block for permanent bans. Admin can add, ban, unban, and remove members.
+> - **Group Management**: Admin can create, inspect, and delete any group conversation.
+> - **Input Bar UI Fix**: Remove unwanted empty space below the message bar by upgrading layout constraints to modern `100dvh` flex columns, removing rogue margins, and tuning safe-area insets for mobile and desktop.
 
 ---
 
 ### 1. Overview & Core Concept
 
-- **What It Does**: PulseChat delivers a complete high-fidelity communication hub. Members can exchange instant text messages, photos, voice notes, and documents in direct messages and groups; express themselves via 24-hour status stories; react to messages with animated emojis; monitor delivery and read receipts; and personalize their avatar, bio, and presence.
-- **Target Audience**: Exclusive teams, private cohorts, and friend groups of up to 15 members needing a secure, ultra-responsive real-time communication space.
-- **Key Value**: Real-time bidirectional synchronization with zero page reloads, distinctive glassmorphism visual design, and privacy-preserving member quota management.
+PulseChat now features an authenticated administrative layer allowing workspace owners to moderate members, oversee group channels, broadcast real-time announcements, and dynamically switch the workspace's visual aesthetic for all active users simultaneously.
+
+- **Admin Account**: `admin` / `admin783`
+- **Admin Capabilities**:
+  1. **Member Management**: Add new cohort members, remove members, issue temporary bans (15m, 1h, 24h, 7d) with automatic countdown, or permanent bans.
+  2. **Group Moderation**: View all groups, member counts, and delete inactive or violated groups.
+  3. **Global Announcement Bar**: Broadcast notifications to all members displayed at the top of the app in real time.
+  4. **15+ Persistent Global Themes**: Dynamically updates CSS variables and Tailwind color accents across every user's screen instantly via Firestore `onSnapshot`.
+  5. **Audit Logs & Maintenance Mode**: Track administrative actions and toggle maintenance lockouts if required.
 
 ---
 
 ### 2. User Experience & Visual Design
 
-#### Visual Identity & Theme
-- **Aesthetic Direction**: Neo-Material Glassmorphic. Soft frosted glass cards (`bg-slate-900/60 backdrop-blur-xl border border-white/10` in dark mode; `bg-white/70 backdrop-blur-xl border border-slate-200/60` in light mode), glowing active halos, and elevation depth.
-- **Color Palette**:
-  - Dominant Canvas: Deep Midnight Slate (`#0B0F19`) / Crisp Light Porcelain (`#F8FAFC`).
-  - Structural Glass: Translucent charcoal (`rgba(17, 24, 39, 0.75)`) and pearl white (`rgba(255, 255, 255, 0.8)`).
-  - Accent Energy: Electric Teal / Cyan (`#06B6D4` / `#0D9488`) for primary actions, active tabs, and read receipt double checks.
-  - Text Hierarchy: Slate 50 for primary headlines, Slate 400 for unboxed metadata and timestamps.
-- **Typography**: Display headlines set in `Plus Jakarta Sans`, body prose in `DM Sans`, and tabular time stamps in tabular figures (`tabular-nums`).
+#### Global Announcement Ribbon
+- Positioned seamlessly at the very top of the interface.
+- Glassmorphic ribbon with glowing accent border, message text, author badge ("Admin Announcement"), timestamp, and member dismiss trigger.
+- Admin view includes quick "Edit Announcement" and "Clear" buttons.
 
-#### Key User Flows & Views
-1. **Authentication & Member Gate**:
-   - Welcome glass card showing current registered count (e.g. `4 / 15 members registered`).
-   - Primary Google Sign-In with 1-click popup flow.
-   - Secondary toggle for Username & Password (with validation and cap check).
-   - Quick testing switcher for multi-account simulation in development.
-2. **Main Workspace Layout (Split-Panel Desktop / Stacked Mobile)**:
-   - **Left Glass Sidebar (360px–420px)**:
-     - Top Bar: User avatar with quick profile drawer trigger, Status stories ring, New Chat/Group button, Dark/Light mode toggle, and member counter badge.
-     - Search & Filter Strip: Instant search for conversations, unread messages, and group filters.
-     - Chat List: Active conversations with last message snippet, timestamp, unread badge counter, and delivery status indicators.
-     - Tab Selector: Clean segmented buttons for **Chats**, **Status Stories**, and **Members Directory (15 Max)**.
-   - **Right Conversation Canvas**:
-     - Chat Header: Active peer/group info, participant avatars, online status ("Active now" or "Typing..."), search within chat, and details drawer toggle.
-     - Virtual Message Stream: Grouped by date, with distinct glass bubble styling (outgoing electric teal/cyan tint, incoming frosted neutral), emoji reaction chips, media thumbnails with lightbox triggers, voice audio players, and double-check read receipts.
-     - Rich Input Bar: Attachment menu (photo, file, document), voice recording button with live waveform animation and cancel/send controls, emoji reaction picker, multiline text box, and send button.
-3. **Status Stories Hub**:
-   - Carousel of active 24h stories with colorful animated avatar gradient rings.
-   - Story Creator modal: Text status with customizable gradient backgrounds and typography, or photo status with caption.
-   - Story Viewer: Fullscreen progressive progress bars (5 seconds per slide), viewer list sheet, and direct reply to chat.
-4. **Profile & Customization Drawer**:
-   - Interactive avatar upload (with live client-side image compression and preset avatar generator).
-   - Display name, custom username handle, bio / "About" text, and presence controls.
+#### 15+ Global Glass Themes
+The admin can select from 15 curated colorways:
+1. **Cyber Cyan (Default)**: Deep midnight slate with electric cyan `#06B6D4`
+2. **Emerald Matrix**: Dark forest slate with vibrant emerald `#10B981`
+3. **Sunset Flame**: Charcoal glass with warm amber `#F59E0B` and coral `#F43F5E`
+4. **Royal Amethyst**: Deep violet obsidian with electric purple `#A855F7`
+5. **Rose Quartz**: Frosted dusk with neon rose `#FB7185`
+6. **Nordic Frost**: Arctic deep navy with ice blue `#38BDF8`
+7. **Tokyo Neon**: High-contrast dark with electric magenta `#E11D48` & cyan
+8. **Golden Hour**: Warm bronze slate with luminous gold `#EAB308`
+9. **Crimson Velvet**: Midnight ruby with rich scarlet `#DC2626`
+10. **Royal Indigo**: Starlight sapphire with deep indigo `#6366F1`
+11. **Ocean Deep**: Deep teal abyss with turquoise `#14B8A6`
+12. **Espresso Amber**: Warm roasted coffee tones with amber `#D97706`
+13. **Nordic Aurora**: Deep spruce glass with lime neon `#84CC16`
+14. **Monochrome Stealth**: Pure carbon black with silver accents `#94A3B8`
+15. **Lavender Dream**: Soft muted grape with bright lilac `#C084FC`
+
+#### Chat Input Bar Fix & Responsiveness
+- Refactor chat canvas to `h-[100dvh]` with `flex flex-col min-h-0`.
+- Eliminate bottom whitespace gap beneath input by anchoring the footer directly to the viewport baseline without trailing margins.
+- Ensure fluid scrolling of message history right above the input bar with zero overlap.
 
 ---
 
 ### 3. Key Product Decisions & Trade-Offs
 
-- **Real-Time Synchronicity**:
-  - *Chosen Approach*: Firestore collection queries with `onSnapshot` listeners.
-  - *Why*: Instant sub-second delivery of incoming messages, reaction increments, and typing indicators without polling.
-  - *Fallback / Graceful Boot*: Comprehensive error boundary and reactive local cache so the app functions immediately while Firebase provisioning terms are confirmed.
-- **15-Member Enforcement**:
-  - *Chosen Approach*: Atomic Firestore check and client-side gate on the `users` collection.
-  - *Why*: Guarantees the room never exceeds 15 registered participants, preventing spam and maintaining an exclusive private cohort.
-- **Media & Voice Note Handling**:
-  - *Chosen Approach*: High-performance base64 data URLs compressed to web-optimized dimensions (<300KB) for photos, and Web Audio API MediaRecorder with compressed audio blobs for voice notes.
-  - *Why*: Guarantees instant previews, zero external CDN dependency failures, and smooth inline audio playback with waveform visualizations.
+- **Theme Synchronization**:
+  - *Chosen Approach*: Stored in `/settings/global` document in Firestore. All clients subscribe via `onSnapshot`.
+  - *Why*: Instant, sub-second theme shifts across all connected users with zero page reloads.
+- **Ban Enforcement**:
+  - *Chosen Approach*: The client root checks `currentUser.banStatus`. If banned and the ban is active (temporary ban has not expired or permanent ban is flagged), the user is blocked by a full-screen glass modal showing the ban reason and remaining timer.
+  - *Why*: Immediate, mathematically enforceable restriction preventing access to chats and statuses.
 
 ---
 
@@ -79,102 +78,58 @@ PulseChat is a next-generation real-time messaging application designed with a c
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│                          PulseChat Web Client                          │
-│                                                                        │
-│   ┌───────────────────┐    ┌────────────────────┐   ┌──────────────┐   │
-│   │   Auth & Gate     │    │   Sidebar Panel    │   │ Chat Canvas  │   │
-│   │ (Google / Creds / │    │ (Chats/Status/15-  │   │ (Stream/     │   │
-│   │ 15-Member Quota)  │    │  Member Directory) │   │  Input/Media)│   │
-│   └─────────┬─────────┘    └─────────┬──────────┘   └──────┬───────┘   │
-└─────────────┼────────────────────────┼─────────────────────┼───────────┘
-              │                        │                     │
-              ▼                        ▼                     ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                   State Management & Firebase Service                  │
-│                                                                        │
-│   • Auth State (Google / Password / User Profile)                      │
-│   • Live Chat Subscriptions (onSnapshot for Messages & Read Receipts)  │
-│   • Status Stories Hub (24h Expiring Posts & Views)                    │
-│   • Audio Recorder & Media Previews                                    │
+│                        Global Settings & Theme                         │
+│                    Firestore: /settings/global                         │
+│   • activeThemeId: string (1 of 15 themes)                             │
+│   • announcement: { active: bool, text: string, severity: string }     │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │
                                     ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│                          Firebase Firestore                            │
+│                   Admin Console (/components/AdminPortal)              │
 │                                                                        │
-│   ├── /users/{userId}           (Profile, bio, avatar, createdAt)      │
-│   ├── /chats/{chatId}           (Participants [max 15], lastMessage)  │
-│   │     └── /messages/{msgId}   (Sender, text, media, reactions, read) │
-│   └── /statuses/{statusId}      (Author, media/text, viewers, expires) │
+│   ├── Members Tab     (Add user, Ban temp/perm, Delete member)         │
+│   ├── Groups Tab      (Inspect groups, Delete inactive channels)       │
+│   ├── Announcement    (Compose top ribbon text, set severity)          │
+│   ├── Themes (15+)    (Visual swatch gallery, 1-click global apply)    │
+│   └── System Audit    (Audit log records of admin actions)             │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                       Client Viewport Adjustments                      │
+│                                                                        │
+│   • Top Ribbon: Persistent Announcement bar                            │
+│   • Main Chat Canvas: 100dvh geometry, zero bottom empty space         │
+│   • Banned User Gate: Lockout shield with real-time countdown          │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-#### Firestore Data Models
+#### New / Updated Firestore Schemas
 
-1. **User Entity (`/users/{userId}`)**:
+1. **Global Settings (`/settings/global`)**:
    ```typescript
-   interface UserProfile {
-     uid: string;
-     email: string;
-     displayName: string;
-     username: string;
-     photoURL: string;
-     bio: string;
-     status: 'online' | 'offline';
-     lastSeen: string;
-     createdAt: string;
-   }
-   ```
-2. **Chat Conversation Entity (`/chats/{chatId}`)**:
-   ```typescript
-   interface ChatConversation {
-     id: string;
-     type: 'direct' | 'group';
-     participantIds: string[]; // max 15
-     name?: string;
-     groupIcon?: string;
-     lastMessage?: {
+   interface GlobalSettings {
+     themeId: string;
+     announcement?: {
        text: string;
-       senderId: string;
-       timestamp: string;
+       severity: 'info' | 'warning' | 'alert';
+       createdAt: string;
+       author: string;
+       active: boolean;
      };
-     unreadCounts: Record<string, number>;
-     updatedAt: string;
+     maintenanceMode?: boolean;
    }
    ```
-3. **Message Entity (`/chats/{chatId}/messages/{messageId}`)**:
+
+2. **User Profile Ban Extension (`/users/{userId}`)**:
    ```typescript
-   interface ChatMessage {
-     id: string;
-     chatId: string;
-     senderId: string;
-     senderName: string;
-     senderPhoto?: string;
-     content: string;
-     type: 'text' | 'image' | 'voice' | 'file';
-     mediaUrl?: string;
-     fileName?: string;
-     fileSize?: string;
-     voiceDuration?: number;
-     reactions: Record<string, string[]>; // emoji -> array of userIds
-     readBy: string[]; // userIds who have opened/read
-     createdAt: string;
-   }
-   ```
-4. **Status Story Entity (`/statuses/{statusId}`)**:
-   ```typescript
-   interface StatusStory {
-     id: string;
-     userId: string;
-     userName: string;
-     userPhoto?: string;
-     type: 'text' | 'image';
-     content: string; // text or image dataUrl
-     backgroundColor?: string;
-     caption?: string;
-     viewers: string[]; // userIds who viewed
-     createdAt: string;
-     expiresAt: string; // 24 hours after creation
+   interface UserBanInfo {
+     isBanned: boolean;
+     banType: 'temporary' | 'permanent';
+     banReason: string;
+     bannedAt: string;
+     banExpiresAt?: string; // ISO timestamp for temporary ban
    }
    ```
 
@@ -182,19 +137,17 @@ PulseChat is a next-generation real-time messaging application designed with a c
 
 ### Step-by-Step Execution Plan
 
-1. **Firebase Provisioning & Rules**:
-   - Call `show_aistudio_ui` with `ui_type: "firebase_setup"` to present terms.
-   - Verify acceptance via `GetFirebaseTos` and call `ProvisionFirebase`.
-   - Setup `firebase-blueprint.json` and deploy hardened `firestore.rules`.
-2. **Audio & Media Utilities**:
-   - Implement audio voice note recording utility (`useVoiceRecorder`) using Web Audio API MediaRecorder.
-   - Image resizing/compression pipeline to ensure ultra-smooth base64 storage.
-3. **Core Application Components**:
-   - Glassmorphic theme styles, icons, and Material-inspired controls.
-   - Authentication modal & 15-member quota counter.
-   - Split-view sidebar: Direct chats, group creation, search, 15-member directory.
-   - Chat canvas: Bubble stream, emoji reactions, voice note player, typing indicator, read receipts.
-   - Status stories: 24h stories tray, fullscreen story viewer, story composer.
-   - Profile drawer: Avatar upload, bio editing, name updates.
-4. **Verification & Build**:
-   - Compile applet with `compile_applet` and verify zero errors.
+1. **Seed & Configure Admin Account**:
+   - Seed `admin` user with password `admin783` (hashed via Web Crypto SHA-256) and `role: 'admin'`.
+2. **Global Settings & Theme Engine**:
+   - Create 15 curated theme color palettes with CSS variable mappings.
+   - Implement `useGlobalSettings` hook with real-time Firestore synchronization.
+3. **Admin Portal Component**:
+   - Modal drawer with tabs for Members (ban/delete/add), Groups (delete/inspect), Announcements (edit/publish), Themes (15 swatches), and Audit logs.
+4. **Top Announcement Ribbon**:
+   - Render dismissible, animated glass banner at the top of the interface.
+5. **UI & Viewport Layout Overhaul**:
+   - Fix empty space below message input in `ChatArea.tsx`.
+   - Upgrade responsive layout for mobile, tablet, and desktop.
+6. **Verification & Linting**:
+   - Verify with `lint_applet` and `compile_applet`.

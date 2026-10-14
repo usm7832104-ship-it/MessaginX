@@ -1,3 +1,11 @@
+export interface UserBanInfo {
+  isBanned: boolean;
+  banType: 'temporary' | 'permanent';
+  banReason: string;
+  bannedAt: string;
+  banExpiresAt?: string; // ISO string for temporary bans
+}
+
 export interface UserProfile {
   uid: string;
   email: string;
@@ -9,6 +17,8 @@ export interface UserProfile {
   lastSeen: string;
   createdAt: string;
   passwordHash?: string;
+  role?: 'admin' | 'member';
+  banInfo?: UserBanInfo;
 }
 
 export interface Chat {
@@ -65,4 +75,30 @@ export interface ReactionItem {
   emoji: string;
   count: number;
   users: string[];
+}
+
+export interface GlobalAnnouncement {
+  id: string;
+  text: string;
+  severity: 'info' | 'warning' | 'alert';
+  active: boolean;
+  createdAt: string;
+  author: string;
+}
+
+export interface GlobalSettings {
+  themeId: string;
+  announcement?: GlobalAnnouncement;
+  maintenanceMode?: boolean;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  action: string;
+  adminName: string;
+  target?: string;
+  details: string;
+  timestamp: string;
 }

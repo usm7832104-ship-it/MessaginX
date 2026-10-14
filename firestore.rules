@@ -9,13 +9,13 @@ service cloud.firestore {
     // User profiles (15-member cohort directory & profiles)
     match /users/{userId} {
       allow get, list: if true;
-      allow create, update: if true;
+      allow create, update, delete: if true;
     }
 
     // Chats (1-on-1 and Group conversations)
     match /chats/{chatId} {
       allow get, list: if true;
-      allow create, update: if true;
+      allow create, update, delete: if true;
 
       // Messages subcollection
       match /messages/{messageId} {
@@ -28,6 +28,18 @@ service cloud.firestore {
     match /statuses/{statusId} {
       allow get, list: if true;
       allow create, update, delete: if true;
+    }
+
+    // Global settings (themes, announcements, configuration)
+    match /settings/{settingId} {
+      allow get, list: if true;
+      allow create, update: if true;
+    }
+
+    // Admin audit logs
+    match /audit_logs/{logId} {
+      allow get, list: if true;
+      allow create, update: if true;
     }
   }
 }

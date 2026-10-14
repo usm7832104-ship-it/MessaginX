@@ -16,7 +16,7 @@ import {
   OperationType,
   serverTimestamp
 } from './firebase';
-import { UserProfile, Chat, ChatMessage, StatusStory } from '../types';
+import { UserProfile, Chat, ChatMessage, StatusStory, GlobalSettings, GlobalAnnouncement, AuditLogEntry } from '../types';
 
 export const MAX_MEMBERS_CAP = 15;
 
@@ -124,8 +124,57 @@ export async function seedInitialCommunityIfEmpty() {
         createdAt: now
       });
     }
+
+    // Always ensure the admin account and global settings are provisioned
+    await seedAdminAccount();
   } catch (err) {
     console.warn('Seeding check note:', err);
+  }
+}
+
+/**
+ * Seed the admin account with username 'admin' and password 'admin783'
+ */
+export async function seedAdminAccount() {
+  try {
+    const adminDocRef = doc(db, 'users', 'admin-system-account');
+    const snap = await getDoc(adminDocRef);
+    const adminPwHash = await hashPassword('admin783');
+    const now = new Date().toISOString();
+
+    await setDoc(adminDocRef, {
+      uid: 'admin-system-account',
+      displayName: 'System Admin',
+      username: 'admin',
+      email: 'admin@pulse.chat',
+      role: 'admin',
+      bio: 'Workspace Administrator with full moderation privileges 🛡️',
+      photoURL: 'https://api.dicebear.com/7.x/bottts/svg?seed=PulseAdminShield',
+      passwordHash: adminPwHash,
+      status: 'online',
+      lastSeen: now,
+      createdAt: snap.exists() ? (snap.data() as UserProfile).createdAt || now : now
+    }, { merge: true });
+
+    // Seed global settings document if not present
+    const settingsDocRef = doc(db, 'settings', 'global');
+    const settingsSnap = await getDoc(settingsDocRef);
+    if (!settingsSnap.exists()) {
+      await setDoc(settingsDocRef, {
+        themeId: 'cyber_cyan',
+        announcement: {
+          id: 'welcome-announcement',
+          text: 'Welcome to PulseChat! Real-time glassmorphic messaging is active for the workspace.',
+          severity: 'info',
+          active: true,
+          createdAt: now,
+          author: 'Admin'
+        },
+        updatedAt: now
+      });
+    }
+  } catch (err) {
+    console.warn('Admin seed notice:', err);
   }
 }
 
@@ -603,3 +652,343 @@ export async function deleteStatusStory(statusId: string) {
     throw err;
   }
 }
+
+/* ==========================================================================
+   ADMIN OPERATIONS & GLOBAL SETTINGS PERSISTENCE
+   ========================================================================== */
+
+/**
+ * Record an audit log entry for admin actions
+ */
+export async function recordAuditLog(
+  action: string,
+  adminName: string,
+  details: string,
+  target?: string
+) {
+  try {
+    const logRef = doc(collection(db, 'audit_logs'));
+    const entry: AuditLogEntry = {
+      id: logRef.id,
+      action,
+      adminName,
+      target,
+      details,
+      timestamp: new Date().toISOString()
+    };
+    await setDoc(logRef, sanitizeForFirestore(entry));
+  } catch (err) {
+    console.warn('Audit log write error:', err);
+  }
+}
+
+/**
+ * Subscribe to audit logs (newest first)
+ */
+export function subscribeToAuditLogs(callback: (logs: AuditLogEntry[]) => void) {
+  return onSnapshot(
+    collection(db, 'audit_logs'),
+    (snap) => {
+      const logs = snap.docs.map(d => ({ ...d.data(), id: d.id } as AuditLogEntry));
+      logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      callback(logs);
+    },
+    (err) => {
+      console.warn('Audit logs listener note:', err);
+    }
+  );
+}
+
+/**
+ * Subscribe to global settings (theme, persistent announcement)
+ */
+export function subscribeToGlobalSettings(callback: (settings: GlobalSettings) => void) {
+  return onSnapshot(
+    doc(db, 'settings', 'global'),
+    (snap) => {
+      if (snap.exists()) {
+        callback(snap.data() as GlobalSettings);
+      } else {
+        callback({ themeId: 'cyber_cyan' });
+      }
+    },
+    (err) => {
+      console.warn('Settings listener note:', err);
+    }
+  );
+}
+
+/**
+ * Change global app theme (affects all users instantly and persists)
+ */
+export async function updateGlobalTheme(themeId: string, adminName = 'Admin') {
+  try {
+    const now = new Date().toISOString();
+    const settingsRef = doc(db, 'settings', 'global');
+    await setDoc(settingsRef, {
+      themeId,
+      updatedAt: now,
+      updatedBy: adminName
+    }, { merge: true });
+
+    await recordAuditLog('THEME_CHANGED', adminName, `Switched global theme to "${themeId}"`);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.UPDATE, 'settings/global');
+    throw err;
+  }
+}
+
+/**
+ * Publish global announcement banner
+ */
+export async function publishAnnouncement(
+  text: string,
+  severity: 'info' | 'warning' | 'alert' = 'info',
+  adminName = 'Admin'
+) {
+  try {
+    const now = new Date().toISOString();
+    const settingsRef = doc(db, 'settings', 'global');
+    const announcement: GlobalAnnouncement = {
+      id: `announcement-${Date.now()}`,
+      text: text.trim(),
+      severity,
+      active: true,
+      createdAt: now,
+      author: adminName
+    };
+
+    await setDoc(settingsRef, {
+      announcement,
+      updatedAt: now,
+      updatedBy: adminName
+    }, { merge: true });
+
+    await recordAuditLog('ANNOUNCEMENT_PUBLISHED', adminName, `Broadcast announcement: "${text.slice(0, 50)}..."`);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.UPDATE, 'settings/global');
+    throw err;
+  }
+}
+
+/**
+ * Clear/deactivate global announcement banner
+ */
+export async function clearAnnouncement(adminName = 'Admin') {
+  try {
+    const now = new Date().toISOString();
+    const settingsRef = doc(db, 'settings', 'global');
+    await updateDoc(settingsRef, {
+      'announcement.active': false,
+      updatedAt: now,
+      updatedBy: adminName
+    });
+
+    await recordAuditLog('ANNOUNCEMENT_CLEARED', adminName, 'Cleared top announcement banner');
+  } catch (err) {
+    handleFirestoreError(err, OperationType.UPDATE, 'settings/global');
+    throw err;
+  }
+}
+
+/**
+ * Ban member (temporary with minutes, or permanent)
+ */
+export async function banMember(
+  userId: string,
+  banType: 'temporary' | 'permanent',
+  banReason: string,
+  durationMinutes?: number,
+  adminName = 'Admin'
+) {
+  try {
+    const now = new Date();
+    let banExpiresAt: string | undefined = undefined;
+
+    if (banType === 'temporary' && durationMinutes) {
+      banExpiresAt = new Date(now.getTime() + durationMinutes * 60 * 1000).toISOString();
+    }
+
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      status: 'offline',
+      banInfo: {
+        isBanned: true,
+        banType,
+        banReason: banReason.trim() || 'Administrative policy violation',
+        bannedAt: now.toISOString(),
+        ...(banExpiresAt ? { banExpiresAt } : {})
+      }
+    });
+
+    await recordAuditLog(
+      'MEMBER_BANNED',
+      adminName,
+      `${banType === 'temporary' ? `Temporarily banned (${durationMinutes}m)` : 'Permanently banned'}: ${banReason}`,
+      userId
+    );
+  } catch (err) {
+    handleFirestoreError(err, OperationType.UPDATE, `users/${userId}`);
+    throw err;
+  }
+}
+
+/**
+ * Unban member
+ */
+export async function unbanMember(userId: string, adminName = 'Admin') {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      banInfo: {
+        isBanned: false,
+        banType: 'temporary',
+        banReason: '',
+        bannedAt: ''
+      }
+    });
+
+    await recordAuditLog('MEMBER_UNBANNED', adminName, 'Restored account access', userId);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.UPDATE, `users/${userId}`);
+    throw err;
+  }
+}
+
+/**
+ * Delete member completely from workspace
+ */
+export async function deleteMember(userId: string, adminName = 'Admin') {
+  try {
+    // Delete user doc
+    await deleteDoc(doc(db, 'users', userId));
+
+    // Remove user from all groups
+    const chatsSnap = await getDocs(query(collection(db, 'chats'), where('type', '==', 'group')));
+    for (const chatDoc of chatsSnap.docs) {
+      const chatData = chatDoc.data() as Chat;
+      if (chatData.participantIds.includes(userId)) {
+        await updateDoc(chatDoc.ref, {
+          participantIds: chatData.participantIds.filter(id => id !== userId)
+        });
+      }
+    }
+
+    await recordAuditLog('MEMBER_DELETED', adminName, `Permanently removed member account`, userId);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, `users/${userId}`);
+    throw err;
+  }
+}
+
+/**
+ * Add new member by Admin
+ */
+export async function adminAddMember(
+  displayName: string,
+  username: string,
+  initialPassword = 'password123',
+  bio?: string,
+  adminName = 'Admin'
+): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
+  try {
+    const cleanUsername = username.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    const currentMembers = await getRegisteredUsers();
+
+    if (currentMembers.length >= MAX_MEMBERS_CAP) {
+      return { success: false, error: `Maximum cohort capacity of ${MAX_MEMBERS_CAP} members reached.` };
+    }
+
+    if (currentMembers.some(m => m.username.toLowerCase() === cleanUsername)) {
+      return { success: false, error: `Username @${cleanUsername} is already registered.` };
+    }
+
+    const createdUid = `user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const pwHash = await hashPassword(initialPassword);
+
+    const res = await registerOrUpdateUserProfile({
+      uid: createdUid,
+      email: `${cleanUsername}@pulse.chat`,
+      displayName: displayName.trim(),
+      username: cleanUsername,
+      bio: bio?.trim() || 'Member invited by Admin.',
+      photoURL: `https://api.dicebear.com/7.x/shapes/svg?seed=${cleanUsername}`,
+      passwordHash: pwHash
+    });
+
+    if (res.success && res.user) {
+      await recordAuditLog('MEMBER_ADDED', adminName, `Created account @${cleanUsername} (${displayName})`, createdUid);
+    }
+
+    return res;
+  } catch (err) {
+    return { success: false, error: 'Failed to add member.' };
+  }
+}
+
+/**
+ * Get all groups for admin inspection
+ */
+export async function getAllGroups(): Promise<Chat[]> {
+  try {
+    const snap = await getDocs(query(collection(db, 'chats'), where('type', '==', 'group')));
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as Chat));
+  } catch (err) {
+    handleFirestoreError(err, OperationType.GET, 'chats');
+    return [];
+  }
+}
+
+/**
+ * Delete a group conversation by Admin
+ */
+export async function deleteGroup(chatId: string, adminName = 'Admin') {
+  try {
+    // Delete parent chat
+    await deleteDoc(doc(db, 'chats', chatId));
+    await recordAuditLog('GROUP_DELETED', adminName, `Deleted group channel`, chatId);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, `chats/${chatId}`);
+    throw err;
+  }
+}
+
+/**
+ * Clear message history in a chat by Admin
+ */
+export async function clearChatMessages(chatId: string, adminName = 'Admin') {
+  try {
+    const messagesSnap = await getDocs(collection(db, `chats/${chatId}/messages`));
+    for (const msgDoc of messagesSnap.docs) {
+      await deleteDoc(msgDoc.ref);
+    }
+    await updateDoc(doc(db, 'chats', chatId), {
+      lastMessage: {
+        text: 'Message history cleared by administrator',
+        senderId: 'system',
+        senderName: 'System',
+        timestamp: new Date().toISOString()
+      }
+    });
+    await recordAuditLog('CHAT_HISTORY_PURGED', adminName, `Purged all messages in conversation`, chatId);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, `chats/${chatId}/messages`);
+    throw err;
+  }
+}
+
+/**
+ * Admin reset a member's password
+ */
+export async function adminResetPassword(userId: string, newPassword: string, adminName = 'Admin') {
+  try {
+    const pwHash = await hashPassword(newPassword);
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, { passwordHash: pwHash });
+    await recordAuditLog('PASSWORD_RESET', adminName, `Reset password for member`, userId);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.UPDATE, `users/${userId}`);
+    throw err;
+  }
+}
+

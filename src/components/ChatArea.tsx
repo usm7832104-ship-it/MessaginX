@@ -204,7 +204,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   }
 
   return (
-    <main className="flex-1 h-full flex flex-col bg-slate-950/60 relative overflow-hidden select-none">
+    <main className="flex-1 h-full min-h-0 flex flex-col bg-slate-950/60 relative overflow-hidden select-none">
       {/* Background ambient lighting */}
       <div className="absolute top-0 right-1/4 w-80 h-80 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
@@ -262,7 +262,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       </header>
 
       {/* MAIN MESSAGES AREA */}
-      <div className="flex-1 flex overflow-hidden relative z-10">
+      <div className="flex-1 min-h-0 flex overflow-hidden relative z-10">
         <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3.5">
           {/* Welcome chat header */}
           <div className="text-center py-4">
@@ -490,7 +490,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       </div>
 
       {/* INPUT BAR */}
-      <footer className="p-3 md:p-4 bg-slate-900/80 backdrop-blur-2xl border-t border-white/10 shrink-0 z-20">
+      <footer className="py-2.5 px-3 md:py-3 md:px-4 bg-slate-900/90 backdrop-blur-2xl border-t border-white/10 shrink-0 z-20">
         {/* Voice Recording Active UI */}
         {isRecording ? (
           <div className="flex items-center justify-between p-2 rounded-2xl bg-red-500/15 border border-red-500/30">
@@ -524,18 +524,18 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           </div>
         ) : (
           /* Normal Message Input Bar */
-          <form onSubmit={handleSendTextMessage} className="flex items-center gap-2">
+          <form onSubmit={handleSendTextMessage} className="flex items-center gap-2 m-0 p-0">
             {/* Attachment Menu Triggers */}
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
               {/* Photo upload */}
               <button
                 type="button"
                 disabled={isUploading}
                 onClick={() => imageInputRef.current?.click()}
-                className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50"
+                className="p-2 sm:p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50"
                 title="Send photo"
               >
-                <ImageIcon className="w-5 h-5" />
+                <ImageIcon className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
               </button>
               <input
                 type="file"
@@ -550,10 +550,10 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 type="button"
                 disabled={isUploading}
                 onClick={() => fileInputRef.current?.click()}
-                className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50"
+                className="p-2 sm:p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50"
                 title="Attach file"
               >
-                <Paperclip className="w-5 h-5" />
+                <Paperclip className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
               </button>
               <input
                 type="file"
@@ -571,13 +571,13 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 disabled={isUploading}
-                className="w-full h-11 px-4 pr-10 rounded-2xl bg-slate-950/70 border border-white/10 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 shadow-inner"
+                className="w-full h-10 sm:h-11 px-3.5 sm:px-4 pr-9 sm:pr-10 rounded-2xl bg-slate-950/70 border border-white/10 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/60 shadow-inner"
               />
               {/* Quick Emoji Picker Button */}
               <button
                 type="button"
                 onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
-                className="absolute right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-white"
+                className="absolute right-2 sm:right-2.5 p-1 rounded-lg text-slate-400 hover:text-white"
                 title="Quick emojis"
               >
                 <Smile className="w-4 h-4" />
@@ -585,7 +585,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
               {/* Emoji quick popup tray */}
               {isEmojiPickerOpen && (
-                <div className="absolute right-0 bottom-14 p-2 rounded-2xl bg-slate-900 border border-white/15 shadow-2xl flex items-center gap-1.5 z-30">
+                <div className="absolute right-0 bottom-13 p-2 rounded-2xl bg-slate-900 border border-white/15 shadow-2xl flex items-center gap-1.5 z-30">
                   {COMMON_REACTIONS.map((em) => (
                     <button
                       key={em}
@@ -594,7 +594,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                         setInputText(prev => prev + em);
                         setIsEmojiPickerOpen(false);
                       }}
-                      className="text-lg p-1.5 rounded-xl hover:bg-white/10 transition-transform active:scale-125"
+                      className="text-base sm:text-lg p-1.5 rounded-xl hover:bg-white/10 transition-transform active:scale-125"
                     >
                       {em}
                     </button>
@@ -607,7 +607,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             {inputText.trim() ? (
               <button
                 type="submit"
-                className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-cyan-500 to-emerald-400 text-slate-950 font-bold flex items-center justify-center shadow-lg shadow-cyan-500/20 hover:opacity-95 active:scale-95 transition-all shrink-0"
+                style={{ background: 'var(--theme-gradient)' }}
+                className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl text-slate-950 font-bold flex items-center justify-center shadow-lg shadow-black/20 hover:opacity-95 active:scale-95 transition-all shrink-0"
                 title="Send message"
               >
                 <Send className="w-4 h-4 stroke-[2.5]" />
@@ -616,10 +617,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               <button
                 type="button"
                 onClick={startRecording}
-                className="w-11 h-11 rounded-2xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 flex items-center justify-center active:scale-95 transition-all shrink-0"
+                style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+                className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-white/5 hover:bg-white/10 border flex items-center justify-center active:scale-95 transition-all shrink-0"
                 title="Record voice note"
               >
-                <Mic className="w-5 h-5" />
+                <Mic className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
               </button>
             )}
           </form>

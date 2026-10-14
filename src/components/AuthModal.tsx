@@ -302,9 +302,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen }) => {
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
 
+            <div className="mt-2.5 p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-2 text-[11px] text-amber-200">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="truncate">Admin: <strong>admin</strong> / <strong>admin783</strong></span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setUsername('admin');
+                  setPassword('admin783');
+                  setCredTab('signin');
+                }}
+                className="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-medium shrink-0 transition-colors"
+              >
+                Autofill
+              </button>
+            </div>
+
             <p className="text-[11px] text-center text-slate-400 mt-2">
               {credTab === 'signin'
-                ? 'Tip: Preset members can sign in with password "password123"'
+                ? 'Preset members can sign in with password "password123"'
                 : 'Choose any username (min 3 chars) and password (min 4 chars)'}
             </p>
           </form>
@@ -321,7 +339,32 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen }) => {
               <span className="text-[10px] text-slate-500">1-click simulation</span>
             </div>
             <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1">
-              {allMembers.slice(0, 6).map((member) => (
+              {/* Show admin button first if available or create click */}
+              {allMembers.filter(m => m.username === 'admin' || m.role === 'admin').map((adminMember) => (
+                <button
+                  key={adminMember.uid}
+                  type="button"
+                  onClick={() => switchDemoUser(adminMember)}
+                  className="col-span-2 flex items-center justify-between p-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-left transition-all"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <img
+                      src={adminMember.photoURL}
+                      alt="Admin"
+                      className="w-7 h-7 rounded-full object-cover border border-amber-400 shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-bold text-amber-200 truncate flex items-center gap-1">
+                        System Admin <span className="text-[9px] px-1 bg-amber-500/30 rounded text-amber-300">ADMIN</span>
+                      </p>
+                      <p className="text-[10px] text-amber-400/80 truncate">@admin • admin783</p>
+                    </div>
+                  </div>
+                  <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0 mr-1" />
+                </button>
+              ))}
+
+              {allMembers.filter(m => m.username !== 'admin' && m.role !== 'admin').slice(0, 6).map((member) => (
                 <button
                   key={member.uid}
                   type="button"

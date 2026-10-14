@@ -14,6 +14,7 @@ import {
   getRegisteredUsers,
   setUserStatus,
   seedInitialCommunityIfEmpty,
+  seedAdminAccount,
   hashPassword,
   MAX_MEMBERS_CAP
 } from '../services/chatService';
@@ -150,6 +151,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         m => m.username.toLowerCase() === cleanInput.toLowerCase() ||
              m.email.toLowerCase() === cleanInput.toLowerCase()
       );
+
+      // Explicit check for system administrator credentials
+      if (cleanInput.toLowerCase() === 'admin' && pass === 'admin783') {
+        await seedAdminAccount();
+        const refreshed = await getRegisteredUsers();
+        const adminAcc = refreshed.find(m => m.username === 'admin');
+        if (adminAcc) {
+          setCurrentUser(adminAcc);
+          localStorage.setItem('pulsechat_active_uid', adminAcc.uid);
+          await setUserStatus(adminAcc.uid, 'online');
+          setIsLoading(false);
+          return { success: true };
+        }
+      }
 
       if (!found) {
         setIsLoading(false);

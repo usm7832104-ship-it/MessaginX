@@ -7,12 +7,17 @@ import { AuthModal } from './components/AuthModal';
 import { ProfileDrawer } from './components/ProfileDrawer';
 import { NewChatModal } from './components/NewChatModal';
 import { MediaLightbox } from './components/MediaLightbox';
-import { Chat, ChatMessage, StatusStory } from './types';
+import { AnnouncementBanner } from './components/AnnouncementBanner';
+import { AdminPortal } from './components/AdminPortal';
+import { BannedScreen } from './components/BannedScreen';
+import { Chat, ChatMessage, StatusStory, GlobalSettings } from './types';
 import {
   subscribeToUserChats,
   subscribeToMessages,
-  subscribeToStatuses
+  subscribeToStatuses,
+  subscribeToGlobalSettings
 } from './services/chatService';
+import { applyThemeToDocument, getThemeById } from './utils/themeManager';
 
 function MainChatApp() {
   const { currentUser, isLoading } = useAuth();
@@ -24,6 +29,21 @@ function MainChatApp() {
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [activeSidebarTab, setActiveSidebarTab] = useState<'chats' | 'directory'>('chats');
+  const [isAdminPortalOpen, setIsAdminPortalOpen] = useState(false);
+  const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
+
+  // Real-time subscription to global settings (theme & persistent announcement)
+  useEffect(() => {
+    const unsubscribe = subscribeToGlobalSettings((settings) => {
+      setGlobalSettings(settings);
+      if (settings.themeId) {
+        const theme = getThemeById(settings.themeId);
+        applyThemeToDocument(theme);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   // Real-time subscription to user's conversations
   useEffect(() => {
@@ -68,7 +88,7 @@ function MainChatApp() {
 
   if (isLoading) {
     return (
-      <div className="w-screen h-screen flex flex-col items-center justify-center bg-slate-950 text-white select-none">
+      <div className="w-full h-full h-dvh flex flex-col items-center justify-center bg-slate-950 text-white select-none">
         <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-emerald-400 p-0.5 animate-pulse mb-4">
           <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
             <span className="text-cyan-400 font-bold text-lg">P</span>
@@ -84,49 +104,66 @@ function MainChatApp() {
     return <AuthModal isOpen={true} />;
   }
 
+  // If user is banned by admin, show lockout screen with countdown and reason
+  if (currentUser.banInfo?.isBanned) {
+    return <BannedScreen banInfo={currentUser.banInfo} userId={currentUser.uid} />;
+  }
+
+  const isAdmin = currentUser.role === 'admin' || currentUser.username === 'admin';
   const activeChat = chats.find(c => c.id === activeChatId) || null;
 
   return (
-    <div className="w-screen h-screen overflow-hidden flex bg-slate-950 text-slate-100 select-none">
-      {/* LEFT SIDEBAR (always visible on desktop, conditionally on mobile) */}
-      <div
-        className={`${
-          activeChatId ? 'hidden md:flex' : 'flex'
-        } w-full md:w-80 lg:w-96 h-full flex-col shrink-0`}
-      >
-        {/* Status Stories Carousel */}
-        <StatusStories
-          statuses={statuses}
-          onOpenChatWithUser={(chatId) => {
-            setActiveChatId(chatId);
-            setActiveSidebarTab('chats');
-          }}
-        />
+    <div className="w-full h-full h-dvh max-h-dvh overflow-hidden flex flex-col bg-slate-950 text-slate-100 select-none">
+      {/* GLOBAL TOP ANNOUNCEMENT BANNER */}
+      <AnnouncementBanner
+        announcement={globalSettings?.announcement}
+        isAdmin={isAdmin}
+        onOpenAdminPortal={() => setIsAdminPortalOpen(true)}
+      />
 
-        {/* Sidebar Navigation & Chat List */}
-        <Sidebar
-          chats={chats}
-          activeChatId={activeChatId}
-          onSelectChat={(chatId) => setActiveChatId(chatId)}
-          onOpenNewChatModal={() => setIsNewChatOpen(true)}
-          onOpenProfileDrawer={() => setIsProfileOpen(true)}
-          activeSidebarTab={activeSidebarTab}
-          setActiveSidebarTab={setActiveSidebarTab}
-        />
-      </div>
+      {/* MAIN CHAT WORKSPACE (fills remaining viewport height cleanly) */}
+      <div className="flex-1 min-h-0 w-full flex overflow-hidden">
+        {/* LEFT SIDEBAR (always visible on desktop, conditionally on mobile) */}
+        <div
+          className={`${
+            activeChatId ? 'hidden md:flex' : 'flex'
+          } w-full md:w-80 lg:w-96 h-full min-h-0 flex-col shrink-0`}
+        >
+          {/* Status Stories Carousel */}
+          <StatusStories
+            statuses={statuses}
+            onOpenChatWithUser={(chatId) => {
+              setActiveChatId(chatId);
+              setActiveSidebarTab('chats');
+            }}
+          />
 
-      {/* RIGHT CHAT AREA (visible when chat active or on desktop) */}
-      <div
-        className={`${
-          !activeChatId ? 'hidden md:flex' : 'flex'
-        } flex-1 h-full flex-col min-w-0`}
-      >
-        <ChatArea
-          chat={activeChat}
-          messages={messages}
-          onBackToSidebar={() => setActiveChatId(null)}
-          onOpenLightbox={(src) => setLightboxSrc(src)}
-        />
+          {/* Sidebar Navigation & Chat List */}
+          <Sidebar
+            chats={chats}
+            activeChatId={activeChatId}
+            onSelectChat={(chatId) => setActiveChatId(chatId)}
+            onOpenNewChatModal={() => setIsNewChatOpen(true)}
+            onOpenProfileDrawer={() => setIsProfileOpen(true)}
+            activeSidebarTab={activeSidebarTab}
+            setActiveSidebarTab={setActiveSidebarTab}
+            onOpenAdminPortal={() => setIsAdminPortalOpen(true)}
+          />
+        </div>
+
+        {/* RIGHT CHAT AREA (visible when chat active or on desktop) */}
+        <div
+          className={`${
+            !activeChatId ? 'hidden md:flex' : 'flex'
+          } flex-1 h-full min-h-0 flex-col min-w-0`}
+        >
+          <ChatArea
+            chat={activeChat}
+            messages={messages}
+            onBackToSidebar={() => setActiveChatId(null)}
+            onOpenLightbox={(src) => setLightboxSrc(src)}
+          />
+        </div>
       </div>
 
       {/* MODALS & DRAWERS */}
@@ -145,6 +182,13 @@ function MainChatApp() {
         isOpen={Boolean(lightboxSrc)}
         src={lightboxSrc}
         onClose={() => setLightboxSrc(null)}
+      />
+
+      {/* ADMIN PORTAL MODAL */}
+      <AdminPortal
+        isOpen={isAdminPortalOpen}
+        onClose={() => setIsAdminPortalOpen(false)}
+        currentSettings={globalSettings || undefined}
       />
     </div>
   );

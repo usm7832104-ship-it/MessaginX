@@ -12,7 +12,8 @@ import {
   Image as ImageIcon,
   Mic,
   FileText,
-  UserCheck
+  UserCheck,
+  Shield
 } from 'lucide-react';
 import { Chat, UserProfile } from '../types';
 import { formatTime } from '../utils/mediaUtils';
@@ -26,6 +27,7 @@ interface SidebarProps {
   onOpenProfileDrawer: () => void;
   activeSidebarTab: 'chats' | 'directory';
   setActiveSidebarTab: (tab: 'chats' | 'directory') => void;
+  onOpenAdminPortal?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -35,7 +37,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenNewChatModal,
   onOpenProfileDrawer,
   activeSidebarTab,
-  setActiveSidebarTab
+  setActiveSidebarTab,
+  onOpenAdminPortal
 }) => {
   const { currentUser, allMembers, registeredCount, switchDemoUser } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -82,8 +85,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.username === 'admin';
+
   return (
-    <aside className="w-full md:w-80 lg:w-96 h-full flex flex-col bg-slate-900/80 backdrop-blur-2xl border-r border-white/10 shrink-0 select-none">
+    <aside className="w-full flex-1 min-h-0 flex flex-col bg-slate-900/80 backdrop-blur-2xl select-none">
       {/* Top Header */}
       <div className="h-16 px-4 border-b border-white/10 flex items-center justify-between shrink-0 bg-slate-950/40">
         {/* User Avatar + Profile Drawer trigger */}
@@ -104,6 +109,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="min-w-0">
             <h1 className="text-sm font-bold text-white truncate flex items-center gap-1.5 leading-tight">
               PulseChat
+              {isAdmin && (
+                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  ADMIN
+                </span>
+              )}
             </h1>
             <div className="flex items-center gap-1 text-[11px] text-slate-400 font-mono">
               <span className="text-cyan-400 font-medium">{registeredCount}/{MAX_MEMBERS_CAP}</span>
@@ -114,6 +124,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-1">
+          {/* Admin Portal Button */}
+          {isAdmin && onOpenAdminPortal && (
+            <button
+              onClick={onOpenAdminPortal}
+              className="p-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 transition-all"
+              title="Admin Portal"
+            >
+              <Shield className="w-4 h-4" />
+            </button>
+          )}
+
           {/* Quick Demo Switcher toggle */}
           <div className="relative">
             <button
